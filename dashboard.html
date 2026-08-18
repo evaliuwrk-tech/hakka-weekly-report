@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哈客組 週報進度看板（組長專用）</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --card:#ffffff; --ink:#2c2a26; --muted:#6f6a60;
+    --line:#e4ddcf; --brand:#8a5a2b; --brand-2:#b07d45;
+    --ok:#2f8a54; --ok-bg:#e6f4ec; --no:#c14a4a; --no-bg:#fbeaea; --warn:#c98a1a; --warn-bg:#fbf1dd;
+    --shadow:0 6px 24px rgba(60,45,20,.08); --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1c1a17; --card:#26231f; --ink:#efe9df; --muted:#a89f90;
+      --line:#3a352e; --brand:#d1a06a; --brand-2:#b98a52;
+      --ok:#7ed4a3; --ok-bg:#1e3a2a; --no:#e88; --no-bg:#3a2422; --warn:#e0b25a; --warn-bg:#3a3020;
+      --shadow:0 6px 24px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft JhengHei","微軟正黑體",-apple-system,"Segoe UI",sans-serif;line-height:1.6;}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 60px;}
+  header{display:flex;align-items:center;gap:12px;margin:8px 0 18px;flex-wrap:wrap;}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex:none;}
+  h1{font-size:20px;margin:0;}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+  .btn{padding:10px 16px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;
+    background:var(--card);color:var(--ink);}
+  .btn.solid{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-color:transparent;box-shadow:var(--shadow);}
+  .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:800;}
+  .pill.ok{background:var(--ok-bg);color:var(--ok);} .pill.no{background:var(--no-bg);color:var(--no);}
+  /* 催繳區 */
+  .chase{border-radius:12px;padding:14px 16px;margin-bottom:14px;border:1px solid;}
+  .chase.clear{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
+  .chase.due{background:var(--warn-bg);border-color:var(--warn);color:var(--warn);}
+  .chase.over{background:var(--no-bg);border-color:var(--no);color:var(--no);}
+  .chase h2{font-size:15px;margin:0 0 6px;}
+  .chase .who{font-size:16px;font-weight:800;color:var(--ink);}
+  .chase .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .copybtn{padding:8px 14px;border-radius:9px;border:none;font-weight:800;font-size:13px;cursor:pointer;
+    background:var(--brand);color:#fff;}
+  /* 表格 */
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px;}
+  th,td{border:1px solid var(--line);padding:9px 8px;text-align:center;}
+  th{background:var(--bg);font-weight:800;}
+  td.name,th.name{text-align:left;position:sticky;left:0;background:var(--card);font-weight:700;white-space:nowrap;}
+  th.name{background:var(--bg);}
+  th.cur{color:var(--brand);}
+  td.cell.ok{background:var(--ok-bg);} td.cell.over{background:var(--no-bg);}
+  .mark-ok{color:var(--ok);font-weight:900;font-size:16px;}
+  .mark-over{color:var(--no);font-weight:900;font-size:15px;}
+  .mark-pending{color:var(--muted);font-size:15px;}
+  .legend{font-size:12.5px;color:var(--muted);margin-top:12px;}
+  .legend b.ok{color:var(--ok);} .legend b.over{color:var(--no);}
+  .loading{color:var(--muted);padding:26px;text-align:center;}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">哈</div>
+    <div>
+      <h1 id="title">週報進度看板</h1>
+      <div class="sub">組長專用 · 一眼看本週誰已交、誰逾期</div>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="top">
+      <div id="summary" style="font-size:15px;font-weight:700;">載入中…</div>
+      <div>
+        <button class="btn solid" onclick="loadDashboard()">🔄 重新整理</button>
+        <a class="btn" id="open-form" href="#" target="_blank" rel="noopener">↗ 開填報頁</a>
+      </div>
+    </div>
+    <div id="chase"></div>
+    <div id="body"><div class="loading">載入中…</div></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <footer>哈客組 · 週報進度看板（此頁請勿分享給組員）</footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+const CONFIG = window.HAKKA_CONFIG;
+
+/* ===== 週次工具 ===== */
+function isoWeek(date){
+  const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  const dayNum=d.getUTCDay()||7; d.setUTCDate(d.getUTCDate()+4-dayNum);
+  const yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNo=Math.ceil((((d-yearStart)/86400000)+1)/7);
+  return {year:d.getUTCFullYear(),week:weekNo};
+}
+function weekKeyOf(date){ const {year,week}=isoWeek(date); return year+"-W"+String(week).padStart(2,"0"); }
+function weekBounds(date){ const d=new Date(date); const day=(d.getDay()+6)%7;
+  const mon=new Date(d); mon.setDate(d.getDate()-day); mon.setHours(0,0,0,0);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6); return {mon,sun}; }
+function weekRangeOf(date){ const {mon,sun}=weekBounds(date); const f=x=>(x.getMonth()+1)+"/"+x.getDate(); return f(mon)+"–"+f(sun); }
+/* 該週截止時刻（依 CONFIG.deadlineWeekday / deadlineHour） */
+function deadlineOf(date){
+  const {mon}=weekBounds(date);
+  const wd=Math.min(Math.max(CONFIG.deadlineWeekday||5,1),7);
+  const dl=new Date(mon); dl.setDate(mon.getDate()+(wd-1)); dl.setHours(CONFIG.deadlineHour||18,0,0,0);
+  return dl;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function recentWeeks(n){
+  const arr=[]; const base=new Date();
+  for(let i=0;i<n;i++){ const d=new Date(base); d.setDate(base.getDate()-7*i);
+    arr.push({ key:weekKeyOf(d), num:isoWeek(d).week, range:weekRangeOf(d), deadline:deadlineOf(d) }); }
+  return arr;
+}
+
+/* ===== 讀取（JSONP） ===== */
+let dashLoading=false;
+function loadDashboard(){
+  if(dashLoading) return;
+  document.getElementById("open-form").href=CONFIG.formUrl||"#";
+  if(!CONFIG.appsScriptUrl){ fail("尚未設定 appsScriptUrl（見設定說明）。"); return; }
+  dashLoading=true;
+  document.getElementById("body").innerHTML='<div class="loading">載入中…</div>';
+  const cb="hakkaCb_"+Date.now();
+  const timer=setTimeout(()=>{ cleanup(); fail("連線逾時，請確認 Apps Script 已部署為「任何人皆可存取」。"); },12000);
+  function cleanup(){ try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.remove(); clearTimeout(timer); dashLoading=false; }
+  function fail(m){ document.getElementById("summary").textContent="讀取失敗"; document.getElementById("body").innerHTML='<div class="loading">'+m+'</div>'; }
+  window[cb]=function(res){ cleanup(); render((res&&res.rows)||[]); };
+  const s=document.createElement("script");
+  s.src=CONFIG.appsScriptUrl+"?callback="+cb+"&t="+Date.now();
+  s.onerror=function(){ cleanup(); fail("無法連線到登記網址，請檢查 appsScriptUrl。"); };
+  document.body.appendChild(s);
+}
+
+/* ===== 繪製 ===== */
+function render(rows){
+  const weeks=recentWeeks(CONFIG.weeksToShow);
+  const members=CONFIG.members;
+  const now=new Date();
+  const submitted={}; // name -> weekKey -> time
+  rows.forEach(r=>{ if(!r.name||!r.week) return; (submitted[r.name]=submitted[r.name]||{})[r.week]=r.time||"已繳交"; });
+
+  const cur=weeks[0];
+  const curDone=members.filter(m=>submitted[m]&&submitted[m][cur.key]);
+  const curMissing=members.filter(m=>!(submitted[m]&&submitted[m][cur.key]));
+  const curOverdue = now > cur.deadline;
+
+  // 上方彙總
+  document.getElementById("summary").innerHTML =
+    `本週（W${cur.num} ${cur.range}）繳交：`
+    + `<span class="pill ${curMissing.length?'no':'ok'}">${curDone.length}/${members.length}</span>`;
+
+  // 催繳區
+  const dlStr=`${cur.deadline.getMonth()+1}/${cur.deadline.getDate()}(${["日","一","二","三","四","五","六"][cur.deadline.getDay()]}) ${String(CONFIG.deadlineHour||18).padStart(2,"0")}:00`;
+  let chase="";
+  if(curMissing.length===0){
+    chase=`<div class="chase clear"><h2>🎉 本週全員已繳齊</h2></div>`;
+  }else{
+    const kind=curOverdue?"over":"due";
+    const title=curOverdue?`⚠️ 本週已逾期（截止 ${dlStr}），尚缺 ${curMissing.length} 人`:`⏰ 本週截止 ${dlStr}，尚缺 ${curMissing.length} 人`;
+    chase=`<div class="chase ${kind}"><h2>${title}</h2>`
+        + `<div class="who">${curMissing.map(escapeHtml).join("、")}</div>`
+        + `<div class="row"><span style="font-size:12.5px">可一鍵複製催繳訊息貼到群組</span>`
+        + `<button class="copybtn" onclick='copyChase(${JSON.stringify(curMissing)}, ${JSON.stringify(cur.range)})'>📋 複製催繳訊息</button></div></div>`;
+  }
+  document.getElementById("chase").innerHTML=chase;
+
+  // 表格
+  let html='<div class="tablewrap"><table><thead><tr><th class="name">成員 ＼ 週次</th>';
+  weeks.forEach((w,i)=>{ html+=`<th class="${i===0?'cur':''}">W${w.num}<br><small style="font-weight:400;color:var(--muted)">${w.range}</small></th>`; });
+  html+='</tr></thead><tbody>';
+  members.forEach(m=>{
+    html+=`<tr><td class="name">${escapeHtml(m)}</td>`;
+    weeks.forEach(w=>{
+      const t=submitted[m]&&submitted[m][w.key];
+      if(t){ html+=`<td class="cell ok"><span class="mark-ok" title="繳交時間 ${escapeHtml(String(t))}">✓</span></td>`; }
+      else if(now>w.deadline){ html+=`<td class="cell over"><span class="mark-over" title="逾期未交（截止 ${w.range}）">✗</span></td>`; }
+      else{ html+=`<td class="cell"><span class="mark-pending" title="尚未到期">–</span></td>`; }
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  document.getElementById("body").innerHTML=html;
+  document.getElementById("legend").innerHTML=
+    '<b class="ok">✓</b> 已繳交（滑鼠移上去看時間）　<b class="over">✗</b> 逾期未交　<span class="mark-pending">–</span> 尚未到期。'
+    + '　週報內文存於你的私人 Google 試算表，本頁僅顯示繳交狀態。';
+}
+
+function copyChase(missing, range){
+  const msg =
+`【${CONFIG.teamName} 週報提醒】
+以下同仁本週（${range}）週報尚未繳交，請儘快於截止前完成，謝謝！
+${missing.map(m=>"· "+m).join("\n")}
+填報連結：${CONFIG.formUrl||""}`;
+  navigator.clipboard.writeText(msg).then(
+    ()=>alert("已複製催繳訊息，可直接貼到群組！"),
+    ()=>{ prompt("複製失敗，請手動複製以下訊息：", msg); }
+  );
+}
+
+/* 啟動 */
+document.getElementById("title").textContent = CONFIG.teamName + " 週報進度看板";
+document.querySelector(".logo").textContent = (CONFIG.teamName||"哈")[0];
+loadDashboard();
+</script>
+</body>
+</html>
