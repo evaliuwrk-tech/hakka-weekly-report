@@ -14,5 +14,5 @@ window.HAKKA_CONFIG = {
   weeksToShow: 8,
   formUrl: "https://evaliuwrk-tech.github.io/hakka-weekly-report/",
   deadlineWeekday: 5,   // 1=週一 … 5=週五 … 7=週日
-  deadlineHour: 18      // 18 = 下午 6 點（下班）
+  deadlineHour: 16      // 16 = 下午 4 點（週報截止時間）
 };
