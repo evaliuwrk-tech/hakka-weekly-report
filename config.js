@@ -10,7 +10,7 @@
 window.HAKKA_CONFIG = {
   teamName: "哈客組",
   members: ["劉怡君（組長）", "涂政強", "黃敏琪", "劉美君"],
-  appsScriptUrl: "https://script.google.com/macros/s/AKfycbxmNBzeGNv_bdx9LeSgk6vINCqybjwR0YtxpgJ4ocxR5ATq5cj2dV58wggvvMglKeWR/exec",
+  appsScriptUrl: "https://script.google.com/macros/s/AKfycbxDA0YXWgKXwE-wz-KMHjbUkyTGbCnACCT55qrp9IcXln6vK7Mb0Q6PubdkUbOvkIM/exec",
   weeksToShow: 8,
   formUrl: "https://evaliuwrk-tech.github.io/hakka-weekly-report/",
   deadlineWeekday: 5,   // 1=週一 … 5=週五 … 7=週日
