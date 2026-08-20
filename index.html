@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>哈客組 週報填報系統</title>
+<title>週報填報系統</title>
 <style>
   :root{
     --bg:#f4f1ea; --card:#ffffff; --ink:#2c2a26; --muted:#6f6a60;
@@ -62,14 +62,17 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">哈</div>
+    <div class="logo">週</div>
     <div>
       <h1 id="title">週報填報系統</h1>
-      <div class="sub">每週五下班前填報 · 產生統一格式 Word 檔後上傳雲端資料夾</div>
+      <div class="sub">每週五 16:00 前填報 · 產生統一格式 Word 檔後上傳雲端資料夾</div>
     </div>
   </header>
 
   <div class="card">
+    <label id="lbl-group">組別 <span class="req">*</span></label>
+    <select id="f-group" onchange="onGroupChange()"></select>
+
     <label>姓名 <span class="req">*</span></label>
     <select id="f-name"></select>
 
@@ -104,7 +107,7 @@
     <div class="note">按下後會（1）下載命名好的 <b>.docx</b> 檔，請自行上傳到你組別的雲端資料夾；（2）在組長的追蹤表登記你已繳交（同一週再送出會覆蓋，不會重複）。</div>
   </div>
 
-  <footer>哈客組 · 週報填報</footer>
+  <footer>週報填報 · 多組共用</footer>
 </div>
 
 <script src="config.js"></script>
@@ -122,7 +125,7 @@ function isoWeek(date){
 }
 function weekKeyOf(date){ const {year,week}=isoWeek(date); return year + "-W" + String(week).padStart(2,"0"); }
 function weekBounds(date){
-  const d = new Date(date); const day=(d.getDay()+6)%7;              // 週一=0
+  const d = new Date(date); const day=(d.getDay()+6)%7;
   const mon = new Date(d); mon.setDate(d.getDate()-day); mon.setHours(0,0,0,0);
   const sun = new Date(mon); sun.setDate(mon.getDate()+6);
   return {mon, sun};
@@ -148,25 +151,34 @@ function onPickDate(){
 }
 function shiftWeek(delta){ const d=new Date(currentWeekDate); d.setDate(d.getDate()+7*delta); currentWeekDate=d; refreshWeekDisplay(); }
 
-/* ============================ 初始化 ============================ */
+/* ============================ 初始化（多組） ============================ */
 function initForm(){
-  document.getElementById("title").textContent = CONFIG.teamName + " 週報填報系統";
-  document.querySelector(".logo").textContent = (CONFIG.teamName||"哈")[0];
+  document.getElementById("title").textContent = CONFIG.systemName || "週報填報系統";
+  const gsel = document.getElementById("f-group");
+  gsel.innerHTML = CONFIG.groups.map((g,i)=>`<option value="${i}">${escapeHtml(g.name)}</option>`).join("");
+  gsel.selectedIndex = 0;
+  if(CONFIG.groups.length === 1){ document.getElementById("lbl-group").style.display="none"; gsel.style.display="none"; }
+  onGroupChange();
+  refreshWeekDisplay();
+}
+function currentGroup(){ return CONFIG.groups[+document.getElementById("f-group").value] || CONFIG.groups[0]; }
+function onGroupChange(){
+  const g = currentGroup();
   const sel = document.getElementById("f-name");
   sel.innerHTML = '<option value="" disabled selected>— 請選擇 —</option>' +
-    CONFIG.members.map(m=>`<option>${escapeHtml(m)}</option>`).join("");
-  refreshWeekDisplay();
+    g.members.map(m=>`<option>${escapeHtml(m)}</option>`).join("");
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function clearForm(){
   ["f-progress","f-difficulties","f-nextplan","f-note"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("f-name").selectedIndex=0;
+  onGroupChange();
   currentWeekDate=new Date(); refreshWeekDisplay(); showMsg("form-msg","","");
 }
 function showMsg(id, text, kind){ const el=document.getElementById(id); el.textContent=text; el.className="msg"+(text?(" show "+kind):""); }
 
 /* ============================ 送出：下載 docx + 登記 ============================ */
 async function submitReport(){
+  const grp = currentGroup();
   const name=document.getElementById("f-name").value;
   const progress=document.getElementById("f-progress").value.trim();
   const difficulties=document.getElementById("f-difficulties").value.trim();
@@ -180,18 +192,19 @@ async function submitReport(){
   if(!nextPlan){ showMsg("form-msg","「下週規劃」為必填。","err"); return; }
 
   const btn=document.getElementById("btn-gen"); btn.disabled=true;
-  const payload={ name, week, weekRange, progress, difficulties, nextPlan, note, filledAt:new Date().toLocaleString("zh-TW") };
+  const payload={ groupKey:grp.key, groupName:grp.name, name, week, weekRange,
+                  progress, difficulties, nextPlan, note, filledAt:new Date().toLocaleString("zh-TW") };
 
   try{
     const blob=await buildDocxBlob(payload);
-    downloadBlob(blob, `${CONFIG.teamName}_週報_${week}_${name}.docx`);
+    downloadBlob(blob, `${grp.name}_週報_${week}_${name}.docx`);
   }catch(err){ showMsg("form-msg","產生 Word 檔失敗："+err,"err"); btn.disabled=false; return; }
 
   if(CONFIG.appsScriptUrl){
     try{
       await fetch(CONFIG.appsScriptUrl,{ method:"POST", mode:"no-cors",
         headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(payload) });
-      showMsg("form-msg",`✅ 已下載「${CONFIG.teamName}_週報_${week}_${name}.docx」，並完成繳交登記。請把檔案上傳到你的雲端資料夾。`,"ok");
+      showMsg("form-msg",`✅ 已下載「${grp.name}_週報_${week}_${name}.docx」，並完成繳交登記。請把檔案上傳到你的雲端資料夾。`,"ok");
     }catch(err){ showMsg("form-msg","檔案已下載，但登記失敗（可能是網路問題），請通知組長或稍後重試。","err"); }
   }else{ showMsg("form-msg","✅ 已下載 Word 檔（尚未設定登記網址，未登記繳交狀態）。","ok"); }
   btn.disabled=false;
@@ -213,10 +226,10 @@ function paras(text,{bold=false,size=22,after=120,color=null}={}){
 }
 function heading(text){ return paras(text,{bold:true,size:26,after:60,color:"8A5A2B"}); }
 function buildDocumentXml(p){
-  const info=[`姓名：${p.name}`,`週次：${p.week}（${p.weekRange}）`,`填寫時間：${p.filledAt}`]
+  const info=[`組別：${p.groupName}`,`姓名：${p.name}`,`週次：${p.week}（${p.weekRange}）`,`填寫時間：${p.filledAt}`]
     .map(l=>paras(l,{size:20,after:40,color:"6F6A60"})).join("");
   let body="";
-  body+=paras(`${CONFIG.teamName} 個人週報`,{bold:true,size:34,after:120});
+  body+=paras(`${p.groupName} 個人週報`,{bold:true,size:34,after:120});
   body+=info; body+=paras("",{size:8,after:60});
   body+=heading("一、本週進度");                 body+=paras(p.progress,{size:22,after:200});
   body+=heading("二、遇到的困難及預計處理方式"); body+=paras(p.difficulties,{size:22,after:200});

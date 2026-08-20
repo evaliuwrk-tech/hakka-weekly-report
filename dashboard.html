@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>哈客組 週報進度看板（組長專用）</title>
+<title>週報進度看板（組長專用）</title>
 <style>
   :root{
     --bg:#f4f1ea; --card:#ffffff; --ink:#2c2a26; --muted:#6f6a60;
@@ -32,11 +32,10 @@
     padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
   .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
   .btn{padding:10px 16px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;
-    background:var(--card);color:var(--ink);}
+    background:var(--card);color:var(--ink);text-decoration:none;display:inline-block;}
   .btn.solid{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-color:transparent;box-shadow:var(--shadow);}
   .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:800;}
   .pill.ok{background:var(--ok-bg);color:var(--ok);} .pill.no{background:var(--no-bg);color:var(--no);}
-  /* 催繳區 */
   .chase{border-radius:12px;padding:14px 16px;margin-bottom:14px;border:1px solid;}
   .chase.clear{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
   .chase.due{background:var(--warn-bg);border-color:var(--warn);color:var(--warn);}
@@ -44,9 +43,7 @@
   .chase h2{font-size:15px;margin:0 0 6px;}
   .chase .who{font-size:16px;font-weight:800;color:var(--ink);}
   .chase .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;}
-  .copybtn{padding:8px 14px;border-radius:9px;border:none;font-weight:800;font-size:13px;cursor:pointer;
-    background:var(--brand);color:#fff;}
-  /* 表格 */
+  .copybtn{padding:8px 14px;border-radius:9px;border:none;font-weight:800;font-size:13px;cursor:pointer;background:var(--brand);color:#fff;}
   .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px;}
   th,td{border:1px solid var(--line);padding:9px 8px;text-align:center;}
@@ -61,16 +58,19 @@
   .legend{font-size:12.5px;color:var(--muted);margin-top:12px;}
   .legend b.ok{color:var(--ok);} .legend b.over{color:var(--no);}
   .loading{color:var(--muted);padding:26px;text-align:center;}
+  .chooser a{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;
+    font-weight:800;color:var(--brand);text-decoration:none;background:var(--bg);}
+  .chooser a:hover{border-color:var(--brand-2);}
   footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">哈</div>
+    <div class="logo">週</div>
     <div>
       <h1 id="title">週報進度看板</h1>
-      <div class="sub">組長專用 · 一眼看本週誰已交、誰逾期</div>
+      <div class="sub">組長專用 · 一眼看本組誰已交、誰逾期</div>
     </div>
   </header>
 
@@ -87,12 +87,16 @@
     <div class="legend" id="legend"></div>
   </div>
 
-  <footer>哈客組 · 週報進度看板（此頁請勿分享給組員）</footer>
+  <footer>週報進度看板（此頁請勿分享給組員）</footer>
 </div>
 
 <script src="config.js"></script>
 <script>
 const CONFIG = window.HAKKA_CONFIG;
+
+/* 由網址 ?g=key 決定看哪一組 */
+function getGroupKey(){ return new URLSearchParams(location.search).get("g"); }
+function findGroup(key){ return CONFIG.groups.find(g=>g.key===key); }
 
 /* ===== 週次工具 ===== */
 function isoWeek(date){
@@ -107,15 +111,13 @@ function weekBounds(date){ const d=new Date(date); const day=(d.getDay()+6)%7;
   const mon=new Date(d); mon.setDate(d.getDate()-day); mon.setHours(0,0,0,0);
   const sun=new Date(mon); sun.setDate(mon.getDate()+6); return {mon,sun}; }
 function weekRangeOf(date){ const {mon,sun}=weekBounds(date); const f=x=>(x.getMonth()+1)+"/"+x.getDate(); return f(mon)+"–"+f(sun); }
-/* 該週截止時刻（依 CONFIG.deadlineWeekday / deadlineHour） */
 function deadlineOf(date){
   const {mon}=weekBounds(date);
   const wd=Math.min(Math.max(CONFIG.deadlineWeekday||5,1),7);
-  const dl=new Date(mon); dl.setDate(mon.getDate()+(wd-1)); dl.setHours(CONFIG.deadlineHour||18,0,0,0);
+  const dl=new Date(mon); dl.setDate(mon.getDate()+(wd-1)); dl.setHours(CONFIG.deadlineHour||16,0,0,0);
   return dl;
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
 function recentWeeks(n){
   const arr=[]; const base=new Date();
   for(let i=0;i<n;i++){ const d=new Date(base); d.setDate(base.getDate()-7*i);
@@ -123,10 +125,10 @@ function recentWeeks(n){
   return arr;
 }
 
-/* ===== 讀取（JSONP） ===== */
+let GROUP = null;
 let dashLoading=false;
 function loadDashboard(){
-  if(dashLoading) return;
+  if(dashLoading || !GROUP) return;
   document.getElementById("open-form").href=CONFIG.formUrl||"#";
   if(!CONFIG.appsScriptUrl){ fail("尚未設定 appsScriptUrl（見設定說明）。"); return; }
   dashLoading=true;
@@ -142,12 +144,12 @@ function loadDashboard(){
   document.body.appendChild(s);
 }
 
-/* ===== 繪製 ===== */
+/* 姓名唯一，用「姓名+週次」判定是否繳交 */
 function render(rows){
   const weeks=recentWeeks(CONFIG.weeksToShow);
-  const members=CONFIG.members;
+  const members=GROUP.members;
   const now=new Date();
-  const submitted={}; // name -> weekKey -> time
+  const submitted={};
   rows.forEach(r=>{ if(!r.name||!r.week) return; (submitted[r.name]=submitted[r.name]||{})[r.week]=r.time||"已繳交"; });
 
   const cur=weeks[0];
@@ -155,13 +157,11 @@ function render(rows){
   const curMissing=members.filter(m=>!(submitted[m]&&submitted[m][cur.key]));
   const curOverdue = now > cur.deadline;
 
-  // 上方彙總
   document.getElementById("summary").innerHTML =
-    `本週（W${cur.num} ${cur.range}）繳交：`
+    `【${escapeHtml(GROUP.name)}】本週（W${cur.num} ${cur.range}）繳交：`
     + `<span class="pill ${curMissing.length?'no':'ok'}">${curDone.length}/${members.length}</span>`;
 
-  // 催繳區
-  const dlStr=`${cur.deadline.getMonth()+1}/${cur.deadline.getDate()}(${["日","一","二","三","四","五","六"][cur.deadline.getDay()]}) ${String(CONFIG.deadlineHour||18).padStart(2,"0")}:00`;
+  const dlStr=`${cur.deadline.getMonth()+1}/${cur.deadline.getDate()}(${["日","一","二","三","四","五","六"][cur.deadline.getDay()]}) ${String(CONFIG.deadlineHour||16).padStart(2,"0")}:00`;
   let chase="";
   if(curMissing.length===0){
     chase=`<div class="chase clear"><h2>🎉 本週全員已繳齊</h2></div>`;
@@ -175,7 +175,6 @@ function render(rows){
   }
   document.getElementById("chase").innerHTML=chase;
 
-  // 表格
   let html='<div class="tablewrap"><table><thead><tr><th class="name">成員 ＼ 週次</th>';
   weeks.forEach((w,i)=>{ html+=`<th class="${i===0?'cur':''}">W${w.num}<br><small style="font-weight:400;color:var(--muted)">${w.range}</small></th>`; });
   html+='</tr></thead><tbody>';
@@ -184,7 +183,7 @@ function render(rows){
     weeks.forEach(w=>{
       const t=submitted[m]&&submitted[m][w.key];
       if(t){ html+=`<td class="cell ok"><span class="mark-ok" title="繳交時間 ${escapeHtml(String(t))}">✓</span></td>`; }
-      else if(now>w.deadline){ html+=`<td class="cell over"><span class="mark-over" title="逾期未交（截止 ${w.range}）">✗</span></td>`; }
+      else if(now>w.deadline){ html+=`<td class="cell over"><span class="mark-over" title="逾期未交">✗</span></td>`; }
       else{ html+=`<td class="cell"><span class="mark-pending" title="尚未到期">–</span></td>`; }
     });
     html+='</tr>';
@@ -193,12 +192,12 @@ function render(rows){
   document.getElementById("body").innerHTML=html;
   document.getElementById("legend").innerHTML=
     '<b class="ok">✓</b> 已繳交（滑鼠移上去看時間）　<b class="over">✗</b> 逾期未交　<span class="mark-pending">–</span> 尚未到期。'
-    + '　週報內文存於你的私人 Google 試算表，本頁僅顯示繳交狀態。';
+    + '　週報內文存於私人 Google 試算表，本頁僅顯示繳交狀態。';
 }
 
 function copyChase(missing, range){
   const msg =
-`【${CONFIG.teamName} 週報提醒】
+`【${GROUP.name} 週報提醒】
 以下同仁本週（${range}）週報尚未繳交，請儘快於截止前完成，謝謝！
 ${missing.map(m=>"· "+m).join("\n")}
 填報連結：${CONFIG.formUrl||""}`;
@@ -208,10 +207,24 @@ ${missing.map(m=>"· "+m).join("\n")}
   );
 }
 
-/* 啟動 */
-document.getElementById("title").textContent = CONFIG.teamName + " 週報進度看板";
-document.querySelector(".logo").textContent = (CONFIG.teamName||"哈")[0];
-loadDashboard();
+/* ===== 啟動：決定組別 ===== */
+(function start(){
+  const key=getGroupKey();
+  GROUP=findGroup(key);
+  if(!GROUP){
+    // 沒指定或找不到 → 顯示選單，各組長點自己那條
+    document.getElementById("summary").textContent="請選擇你的組別";
+    document.getElementById("chase").innerHTML="";
+    document.getElementById("legend").innerHTML="";
+    document.getElementById("body").innerHTML =
+      '<div class="chooser">'
+      + CONFIG.groups.map(g=>`<a href="?g=${encodeURIComponent(g.key)}">📊 ${escapeHtml(g.name)} 看板</a>`).join("")
+      + '<div class="loading" style="padding:8px">點自己的組別後，把網址加入書籤，下次直接進。</div></div>';
+    return;
+  }
+  document.getElementById("title").textContent = GROUP.name + " 週報進度看板";
+  loadDashboard();
+})();
 </script>
 </body>
 </html>
