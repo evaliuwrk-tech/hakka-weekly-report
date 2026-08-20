@@ -9,7 +9,7 @@
  * ====================================================================== */
 window.HAKKA_CONFIG = {
   systemName: "週報填報系統",
-  appsScriptUrl: "https://script.google.com/macros/s/AKfycbyV5e-x7ehtfb8A05mwtE573VsFtb7jFczKs3bAka52PH35mrQ1-VYerBlENCxjkSY/exec",
+  appsScriptUrl: "https://script.google.com/macros/s/AKfycbx1FoLpNTWXB9CiwCU_8wtmhW419Ezuz--a1g_LXC4u7XgvjXVlDOy8UoDu3vg4FwFq/exec",
   formUrl: "https://evaliuwrk-tech.github.io/hakka-weekly-report/",
   weeksToShow: 8,
   deadlineWeekday: 5,   // 1=週一 … 5=週五 … 7=週日
