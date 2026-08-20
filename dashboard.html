@@ -139,7 +139,7 @@ function loadDashboard(){
   function fail(m){ document.getElementById("summary").textContent="讀取失敗"; document.getElementById("body").innerHTML='<div class="loading">'+m+'</div>'; }
   window[cb]=function(res){ cleanup(); render((res&&res.rows)||[]); };
   const s=document.createElement("script");
-  s.src=CONFIG.appsScriptUrl+"?callback="+cb+"&t="+Date.now();
+  s.src=CONFIG.appsScriptUrl+"?callback="+cb+"&group="+encodeURIComponent(GROUP.key)+"&t="+Date.now();
   s.onerror=function(){ cleanup(); fail("無法連線到登記網址，請檢查 appsScriptUrl。"); };
   document.body.appendChild(s);
 }
